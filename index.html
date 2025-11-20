@@ -427,7 +427,9 @@
             
             // Subtle initial position variance for natural distribution
             const jitter = (Math.random() * 1 - 0.5); 
-            const spawnY = data.startY + (data.gap * 0.5);
+            // Spawn ball closer to first pegs to reduce initial acceleration
+            // This prevents building excessive speed before first collision
+            const spawnY = data.startY + (data.gap * 1.8);
 
             const ball = Bodies.circle(width / 2 + jitter, spawnY, ballRadius, {
                 // Realistic bounce coefficient (like a rubber ball)
