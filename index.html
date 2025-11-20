@@ -263,8 +263,12 @@
             if (height === 0) { setTimeout(init, 50); return; }
 
             engine = Engine.create();
-            engine.world.gravity.y = 1.6; 
-            engine.timing.timeScale = 0.7; 
+            // Realistic gravity: Matter.js uses pixels/frame^2
+            // With 60 fps, gravity.y = 1.0 approximates Earth gravity (9.8 m/s²)
+            // Using 0.98 for precise Earth gravity simulation
+            engine.world.gravity.y = 0.98; 
+            // Real-time physics simulation (no artificial slow-down)
+            engine.timing.timeScale = 1.0; 
 
             render = Render.create({
                 element: container,
@@ -317,8 +321,12 @@
                         isStatic: true,
                         label: 'peg',
                         render: { fillStyle: 'white' },
-                        friction: 0,
-                        restitution: 0.1 
+                        // Realistic friction for peg surfaces (similar to plastic on plastic)
+                        friction: 0.1,
+                        // Higher restitution for natural bounce/deflection (like hard plastic pegs)
+                        restitution: 0.65,
+                        // Slight friction between ball and peg for realistic energy transfer
+                        frictionStatic: 0.05
                     });
                     Composite.add(engine.world, peg);
                 }
@@ -417,14 +425,21 @@
             const sizePercent = parseInt(sizeSlider.value) / 100;
             const ballRadius = data.gap * sizePercent; 
             
-            const jitter = (Math.random() * 2 - 1); 
-            const spawnY = data.startY + (data.gap * 0.5);
+            // Subtle initial position variance for natural distribution
+            const jitter = (Math.random() * 1 - 0.5); 
+            // Spawn ball closer to first pegs to reduce initial acceleration
+            // This prevents building excessive speed before first collision
+            const spawnY = data.startY + (data.gap * 1.8);
 
             const ball = Bodies.circle(width / 2 + jitter, spawnY, ballRadius, {
-                restitution: 0.1, 
-                friction: 0.0, 
-                frictionAir: 0.05, 
-                density: 0.005, 
+                // Realistic bounce coefficient (like a rubber ball)
+                restitution: 0.6, 
+                // Low friction for smooth rolling and natural deflection
+                friction: 0.05, 
+                // Air resistance calibrated for realistic terminal velocity and bell curve distribution
+                frictionAir: 0.01, 
+                // Density for proper mass and momentum (realistic for small balls)
+                density: 0.001, 
                 label: 'ball',
                 plugin: { bet: bet, active: true },
                 render: { 
@@ -433,6 +448,10 @@
                     lineWidth: 2
                 }
             });
+            
+            // Apply subtle initial velocity for realistic drop simulation
+            const initialVelocityX = (Math.random() - 0.5) * 0.1;
+            Body.setVelocity(ball, { x: initialVelocityX, y: 0 });
             
             ball.collisionFilter.group = -1;
             Composite.add(engine.world, ball);
@@ -462,15 +481,12 @@
                     return;
                 }
 
-                // Check Peg (Chaos)
+                // Check Peg (Natural Physics Interaction)
                 let peg = bodyA.label === 'peg' ? bodyA : bodyB.label === 'peg' ? bodyB : null;
                 if (peg) {
                     SoundManager.playPegHit();
-                    if (ball.position.y < peg.position.y) {
-                        const direction = Math.random() < 0.5 ? -1 : 1;
-                        const forceMagnitude = 0.0002; 
-                        Body.applyForce(ball, ball.position, { x: direction * forceMagnitude, y: 0 });
-                    }
+                    // Let natural physics handle deflection through restitution and friction
+                    // No artificial force needed - realistic bounce creates proper randomness
                 }
             });
         }
