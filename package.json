@@ -1,0 +1,29 @@
+{
+  "name": "plinko-game",
+  "version": "1.0.0",
+  "description": "A modern, interactive Plinko game simulator built with vanilla JavaScript and Matter.js physics engine",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000 || python3 -m http.server 8000"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sebichin/plinko-game.git"
+  },
+  "keywords": [
+    "plinko",
+    "game",
+    "physics",
+    "matter-js",
+    "simulation",
+    "casino",
+    "javascript",
+    "html5"
+  ],
+  "author": "Sebastian",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/sebichin/plinko-game/issues"
+  },
+  "homepage": "https://sebichin.github.io/plinko-game/"
+}
