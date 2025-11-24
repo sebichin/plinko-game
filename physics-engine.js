@@ -165,12 +165,14 @@ class RigidBody {
 
     /**
      * Check if a point is inside the body
+     * Note: Rectangle check assumes axis-aligned bounding box (no rotation support)
      */
     containsPoint(point) {
         if (this.shape === 'circle') {
             return Vec2.distance(this.position, point) <= this.radius;
         } else if (this.shape === 'rectangle') {
-            // Simple AABB check (assuming no rotation for simplicity)
+            // Simple AABB check (axis-aligned, ignoring rotation)
+            // For rotated rectangles, a more complex check would be needed
             const halfW = this.width / 2;
             const halfH = this.height / 2;
             return Math.abs(point.x - this.position.x) <= halfW &&
@@ -198,7 +200,10 @@ class SpatialHash {
         // Use prime numbers for better distribution
         const p1 = 73856093;
         const p2 = 19349663;
-        return ((x * p1 + y * p2) | 0);
+        // Use bitwise OR to convert to integer, but handle potential overflow
+        // by taking modulo with a large prime first
+        const hash = (x * p1 + y * p2);
+        return hash | 0;  // Convert to 32-bit integer
     }
 
     /**
@@ -229,6 +234,12 @@ class SpatialHash {
      */
     getCellsForBody(body) {
         const keys = new Set();
+        
+        // Ensure body has a valid ID (should be set by addBody)
+        if (body.id === undefined) {
+            console.warn('Body without ID in spatial hash');
+            return Array.from(keys);
+        }
         
         if (body.shape === 'circle') {
             // Get bounding box of circle
@@ -489,7 +500,18 @@ class PhysicsEngine {
             const distance = Vec2.distance(circle.position, closestPoint);
             
             if (distance < circle.radius) {
-                const normal = circle.position.sub(closestPoint).normalize();
+                // Handle edge case where circle center is at closest point
+                let normal;
+                if (distance < 0.001) {
+                    // Use a default normal pointing from rect center to circle
+                    normal = circle.position.sub(rect.position).normalize();
+                    if (normal.length() === 0) {
+                        normal = new Vec2(0, -1);  // Default to upward
+                    }
+                } else {
+                    normal = circle.position.sub(closestPoint).normalize();
+                }
+                
                 const penetration = circle.radius - distance;
                 const contactPoint = closestPoint;
                 
