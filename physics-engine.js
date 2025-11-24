@@ -192,12 +192,13 @@ class SpatialHash {
 
     /**
      * Hash function to convert 2D cell coordinates to 1D key
+     * Uses a combination of prime number multiplication for better distribution
      */
     hashKey(x, y) {
         // Use prime numbers for better distribution
         const p1 = 73856093;
         const p2 = 19349663;
-        return ((x * p1) ^ (y * p2));
+        return ((x * p1 + y * p2) | 0);
     }
 
     /**
@@ -285,7 +286,7 @@ class SpatialHash {
                     const bodyB = cellBodies[j];
                     
                     // Create unique pair ID
-                    const pairId = bodyA < bodyB 
+                    const pairId = bodyA.id < bodyB.id 
                         ? `${bodyA.id}-${bodyB.id}` 
                         : `${bodyB.id}-${bodyA.id}`;
                     
@@ -631,4 +632,9 @@ class PhysicsEngine {
 // Export for use in the game
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { PhysicsEngine, RigidBody, Vec2 };
+} else if (typeof window !== 'undefined') {
+    // Browser global exports
+    window.PhysicsEngine = PhysicsEngine;
+    window.RigidBody = RigidBody;
+    window.Vec2 = Vec2;
 }
