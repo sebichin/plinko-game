@@ -267,8 +267,8 @@
             ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
 
             // Create custom physics engine with realistic gravity
-            // gravity.y = 0.98 approximates Earth gravity (9.8 m/s²) at 60 FPS
-            engine = new PhysicsEngine({ gravity: 0.98 });
+            // gravity.y = 980 pixels/s² approximates Earth gravity (9.8 m/s²) at ~100 pixels/meter scale
+            engine = new PhysicsEngine({ gravity: 980 });
 
             buildLevel();
 

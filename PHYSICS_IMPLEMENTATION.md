@@ -127,9 +127,9 @@ Where `p1 = 73856093` and `p2 = 19349663` are large primes.
 
 ### Gravity
 ```javascript
-gravity = { x: 0, y: 0.98 }  // pixels/frame²
+gravity = { x: 0, y: 980 }  // pixels/second²
 ```
-At 60 FPS: 0.98 × 60² = 3,528 pixels/second² ≈ 9.8 m/s² (Earth gravity)
+At canvas scale (~100 pixels/meter): 980 pixels/s² ≈ 9.8 m/s² (Earth gravity)
 
 ### Material Properties
 
