@@ -484,14 +484,15 @@
             
             // Subtle initial position variance for natural distribution
             const jitter = (Math.random() * 1 - 0.5); 
-            // Spawn ball closer to first pegs to reduce initial acceleration
-            // This prevents building excessive speed before first collision
-            const spawnY = data.startY + (data.gap * 1.8);
+            // Spawn ball higher to give more visible drop before hitting pegs
+            // Metal balls need more initial drop distance for realistic behavior
+            const spawnY = data.startY + (data.gap * 1.2);
 
             const ball = new RigidBody('circle', width / 2 + jitter, spawnY, {
                 radius: ballRadius,
-                // Metal balls on plastic have moderate bounce (steel on hard plastic)
-                restitution: 0.7, 
+                // Metal balls have low restitution (steel on hard plastic: ~0.3-0.5)
+                // This creates less bouncy, more realistic metal ball behavior
+                restitution: 0.35, 
                 // Very low friction for metal on plastic surface (coefficient ~0.05-0.10)
                 friction: 0.08, 
                 // Minimal air resistance for dense metal ball
