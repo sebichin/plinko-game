@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Plinko: Ultimate Control</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="physics-engine.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@600;800&display=swap');
         
@@ -233,67 +233,50 @@
             return '#f59e0b';
         }
 
-        let engine, render, runner;
+        let engine, canvas, ctx;
         let width, height;
         let balance = 10000;
         let currentRows = 12;
         let gameActive = false;
-
-        const Engine = Matter.Engine,
-              Render = Matter.Render,
-              Runner = Matter.Runner,
-              Bodies = Matter.Bodies,
-              Composite = Matter.Composite,
-              Events = Matter.Events,
-              Body = Matter.Body;
+        let animationFrameId = null;
+        let customData = null;
 
         function init() {
             const container = document.getElementById('game-container');
-            const canvas = document.getElementById('world');
+            canvas = document.getElementById('world');
 
-            if (render) {
-                Render.stop(render);
-                Runner.stop(runner);
-                Engine.clear(engine);
-                render.canvas.remove();
-                render.canvas = null;
-                render.context = null;
-                render.textures = {};
+            if (engine) {
+                // Clean up previous engine
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                }
+                engine.clear();
             }
 
             width = container.clientWidth;
             height = container.clientHeight;
             if (height === 0) { setTimeout(init, 50); return; }
 
-            engine = Engine.create();
-            // Realistic gravity: Matter.js uses pixels/frame^2
-            // With 60 fps, gravity.y = 1.0 approximates Earth gravity (9.8 m/s²)
-            // Using 0.98 for precise Earth gravity simulation
-            engine.world.gravity.y = 0.98; 
-            // Real-time physics simulation (no artificial slow-down)
-            engine.timing.timeScale = 1.0; 
+            // Set canvas size
+            canvas.width = width * (window.devicePixelRatio || 1);
+            canvas.height = height * (window.devicePixelRatio || 1);
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+            
+            ctx = canvas.getContext('2d');
+            ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
 
-            render = Render.create({
-                element: container,
-                canvas: canvas,
-                engine: engine,
-                options: {
-                    width: width,
-                    height: height,
-                    wireframes: false,
-                    background: 'transparent',
-                    pixelRatio: window.devicePixelRatio || 1
-                }
-            });
+            // Create custom physics engine with realistic gravity
+            // gravity.y = 0.98 approximates Earth gravity (9.8 m/s²) at 60 FPS
+            engine = new PhysicsEngine({ gravity: 0.98 });
 
             buildLevel();
 
-            Render.run(render);
-            runner = Runner.create();
-            Runner.run(runner, engine);
+            // Register collision callback
+            engine.onCollision(handleCollision);
 
-            Events.on(engine, 'collisionStart', handleCollision);
-            Events.on(render, 'afterRender', drawOverlay);
+            // Start render loop
+            startRenderLoop();
 
             gameActive = true;
         }
@@ -312,7 +295,7 @@
             const startY = (height - pyramidHeight) / 2 - (gap * 1.0);
             
             const pegRadius = gap * 0.12;
-            render.customData = { gap, rows, mults, startY, pegRadius, numBuckets };
+            customData = { gap, rows, mults, startY, pegRadius, numBuckets };
 
             // Pegs
             for (let r = 2; r < rows; r++) {
@@ -320,7 +303,8 @@
                     const x = width / 2 - (r * gap / 2) + (c * gap);
                     const y = startY + r * gap;
                     
-                    const peg = Bodies.circle(x, y, pegRadius, {
+                    const peg = new RigidBody('circle', x, y, {
+                        radius: pegRadius,
                         isStatic: true,
                         label: 'peg',
                         render: { fillStyle: 'white' },
@@ -331,7 +315,7 @@
                         // Low static friction for smooth metal-on-plastic contact
                         frictionStatic: 0.05
                     });
-                    Composite.add(engine.world, peg);
+                    engine.addBody(peg);
                 }
             }
 
@@ -343,20 +327,90 @@
 
             for (let i = 0; i < numBuckets; i++) {
                 const x = startX + (i * gap);
-                const sensor = Bodies.rectangle(x, bucketY, gap * 0.98, gap, {
+                const sensor = new RigidBody('rectangle', x, bucketY, {
+                    width: gap * 0.98,
+                    height: gap,
                     isStatic: true,
                     isSensor: true,
                     label: 'sensor',
                     plugin: { val: mults[i] },
                     render: { visible: false }
                 });
-                Composite.add(engine.world, sensor);
+                engine.addBody(sensor);
             }
         }
 
+        let lastFrameTime = performance.now();
+        let interpolationAlpha = 0;
+
+        function startRenderLoop() {
+            function loop(currentTime) {
+                const deltaTime = (currentTime - lastFrameTime) / 1000; // Convert to seconds
+                lastFrameTime = currentTime;
+
+                // Update physics with fixed timestep
+                interpolationAlpha = engine.update(deltaTime);
+
+                // Render
+                render();
+
+                animationFrameId = requestAnimationFrame(loop);
+            }
+
+            lastFrameTime = performance.now();
+            animationFrameId = requestAnimationFrame(loop);
+        }
+
+        function render() {
+            if (!ctx || !customData) return;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw overlay (buckets and guides)
+            drawOverlay();
+
+            // Draw all bodies
+            engine.bodies.forEach(body => {
+                if (body.render && body.render.visible === false) return;
+
+                // Use interpolated position for smooth rendering
+                const pos = engine.getInterpolatedPosition(body, interpolationAlpha);
+                
+                ctx.save();
+                ctx.translate(pos.x, pos.y);
+
+                if (body.shape === 'circle') {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, body.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = body.render.fillStyle || '#ffffff';
+                    ctx.fill();
+                    
+                    if (body.render.strokeStyle) {
+                        ctx.strokeStyle = body.render.strokeStyle;
+                        ctx.lineWidth = body.render.lineWidth || 1;
+                        ctx.stroke();
+                    }
+                } else if (body.shape === 'rectangle') {
+                    const halfW = body.width / 2;
+                    const halfH = body.height / 2;
+                    
+                    ctx.fillStyle = body.render.fillStyle || '#ffffff';
+                    ctx.fillRect(-halfW, -halfH, body.width, body.height);
+                    
+                    if (body.render.strokeStyle) {
+                        ctx.strokeStyle = body.render.strokeStyle;
+                        ctx.lineWidth = body.render.lineWidth || 1;
+                        ctx.strokeRect(-halfW, -halfH, body.width, body.height);
+                    }
+                }
+
+                ctx.restore();
+            });
+        }
+
         function drawOverlay() {
-            const ctx = render.context;
-            const data = render.customData;
+            const data = customData;
             if (!data) return;
 
             const { gap, rows, mults, startY, numBuckets } = data;
@@ -421,7 +475,7 @@
             balance -= bet;
             updateUI();
 
-            const data = render.customData;
+            const data = customData;
             
             // --- SIZE LOGIC ---
             const sizeSlider = document.getElementById('sizeSlider');
@@ -434,7 +488,8 @@
             // This prevents building excessive speed before first collision
             const spawnY = data.startY + (data.gap * 1.8);
 
-            const ball = Bodies.circle(width / 2 + jitter, spawnY, ballRadius, {
+            const ball = new RigidBody('circle', width / 2 + jitter, spawnY, {
+                radius: ballRadius,
                 // Metal balls on plastic have moderate bounce (steel on hard plastic)
                 restitution: 0.7, 
                 // Very low friction for metal on plastic surface (coefficient ~0.05-0.10)
@@ -450,49 +505,46 @@
                     fillStyle: '#ff0055',
                     strokeStyle: '#ff88aa',
                     lineWidth: 2
-                }
+                },
+                collisionFilter: { group: -1 }
             });
             
             // Apply subtle initial velocity for realistic drop simulation
             const initialVelocityX = (Math.random() - 0.5) * 0.1;
-            Body.setVelocity(ball, { x: initialVelocityX, y: 0 });
+            ball.velocity = new Vec2(initialVelocityX, 0);
             
-            ball.collisionFilter.group = -1;
-            Composite.add(engine.world, ball);
+            engine.addBody(ball);
         }
 
-        function handleCollision(e) {
-            e.pairs.forEach(pair => {
-                const bodyA = pair.bodyA;
-                const bodyB = pair.bodyB;
+        function handleCollision(event) {
+            const { bodyA, bodyB } = event;
+            
+            // Find Ball
+            let ball = bodyA.label === 'ball' ? bodyA : bodyB.label === 'ball' ? bodyB : null;
+            if (!ball) return;
+
+            // Check Sensor
+            let sensor = bodyA.label === 'sensor' ? bodyA : bodyB.label === 'sensor' ? bodyB : null;
+            if (sensor && ball.plugin.active) {
+                ball.plugin.active = false;
+                const mult = sensor.plugin.val;
+                const win = ball.plugin.bet * mult;
                 
-                // Find Ball
-                let ball = bodyA.label === 'ball' ? bodyA : bodyB.label === 'ball' ? bodyB : null;
-                if (!ball) return;
+                SoundManager.playScore(mult);
+                balance += win;
+                updateUI();
+                spawnFloater(mult, win, ball.position.x, ball.position.y);
+                engine.removeBody(ball);
+                return;
+            }
 
-                // Check Sensor
-                let sensor = bodyA.label === 'sensor' ? bodyA : bodyB.label === 'sensor' ? bodyB : null;
-                if (sensor && ball.plugin.active) {
-                    ball.plugin.active = false;
-                    const mult = sensor.plugin.val;
-                    const win = ball.plugin.bet * mult;
-                    
-                    SoundManager.playScore(mult);
-                    balance += win;
-                    updateUI();
-                    spawnFloater(mult, win, ball.position.x, ball.position.y);
-                    Composite.remove(engine.world, ball);
-                    return;
-                }
-
-                // Check Peg (Natural Physics Interaction)
-                let peg = bodyA.label === 'peg' ? bodyA : bodyB.label === 'peg' ? bodyB : null;
-                if (peg) {
-                    SoundManager.playPegHit();
-                    // Let natural physics handle deflection through restitution and friction
-                    // No artificial force needed - realistic bounce creates proper randomness
-                }
-            });
+            // Check Peg (Natural Physics Interaction)
+            let peg = bodyA.label === 'peg' ? bodyA : bodyB.label === 'peg' ? bodyB : null;
+            if (peg) {
+                SoundManager.playPegHit();
+                // Let natural physics handle deflection through restitution and friction
+                // No artificial force needed - realistic bounce creates proper randomness
+            }
         }
 
         function updateUI() {
