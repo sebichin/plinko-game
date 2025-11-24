@@ -327,7 +327,9 @@ class PhysicsEngine {
      */
     constructor(options = {}) {
         this.bodies = [];
-        this.gravity = new Vec2(0, options.gravity || 0.98);
+        // Gravity in pixels/second² for realistic physics
+        // 980 pixels/s² approximates Earth gravity (9.8 m/s²) at ~100 pixels/meter scale
+        this.gravity = new Vec2(0, options.gravity || 980);
         
         // Fixed timestep for deterministic simulation
         this.fixedDeltaTime = 1 / 60; // 60 FPS
@@ -407,9 +409,9 @@ class PhysicsEngine {
         this.bodies.forEach(body => {
             if (body.isStatic) return;
             
-            // Apply gravity
-            const gravityForce = this.gravity.mul(body.mass * dt);
-            body.velocity = body.velocity.add(gravityForce.mul(1 / body.mass));
+            // Apply gravity: a = g, so Δv = g * dt
+            // gravity is in pixels/second², dt is in seconds
+            body.velocity = body.velocity.add(this.gravity.mul(dt));
             
             // Apply air resistance (drag)
             const drag = 1 - body.frictionAir;

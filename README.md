@@ -115,7 +115,7 @@ Key features:
 Edit the physics constants in the JavaScript:
 ```javascript
 // In physics-engine.js
-engine = new PhysicsEngine({ gravity: 0.98 });  // Gravity strength
+engine = new PhysicsEngine({ gravity: 980 });  // Gravity in pixels/second²
 
 // In RigidBody constructor
 restitution: 0.7,  // Bounciness (0-1)
