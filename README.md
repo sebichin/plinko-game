@@ -4,7 +4,12 @@ A modern, interactive Plinko game simulator built with vanilla JavaScript and Ma
 
 ## 🎯 Features
 
-- **Realistic Physics**: Powered by Matter.js for authentic ball dropping and bouncing mechanics
+- **Advanced Custom Physics Engine**: 
+  - Semi-Implicit Euler integration for stable, energy-conserving simulation
+  - Fixed timestep accumulator for deterministic physics across all devices
+  - Impulse-based collision resolution for realistic interactions
+  - Spatial hashing for efficient O(N) collision detection
+- **Realistic Physics**: Precisely tuned material properties (gravity, friction, restitution)
 - **Customizable Gameplay**: 
   - Choose between 8, 12, or 16 rows for different difficulty levels
   - Adjustable ball size (5% - 45%)
@@ -46,7 +51,7 @@ Higher risk = higher potential rewards!
 - **HTML5** - Structure and canvas rendering
 - **CSS3** - Styling with Tailwind CSS
 - **JavaScript (ES6+)** - Game logic and interactivity
-- **Matter.js** - 2D physics engine for realistic ball physics
+- **Custom Physics Engine** - Advanced 2D physics with Semi-Implicit Euler integration
 - **Web Audio API** - Dynamic sound generation
 
 ## 📦 Installation
@@ -96,11 +101,25 @@ If you want to set up GitHub Pages manually:
 
 The game is highly customizable. Here are some areas you can modify:
 
+### Physics Engine
+
+The game uses a custom-built physics engine implementing advanced computational dynamics. For detailed information about the implementation, see [PHYSICS_IMPLEMENTATION.md](PHYSICS_IMPLEMENTATION.md).
+
+Key features:
+- **Semi-Implicit Euler Integration**: Energy-conserving symplectic integrator
+- **Fixed Timestep**: Deterministic physics (1/60 second steps)
+- **Impulse-Based Collisions**: Realistic momentum transfer
+- **Spatial Hashing**: Efficient O(N) collision detection
+
 ### Adjust Physics
 Edit the physics constants in the JavaScript:
 ```javascript
-engine.world.gravity.y = 1.6;  // Gravity strength
-engine.timing.timeScale = 0.7; // Game speed
+// In physics-engine.js
+engine = new PhysicsEngine({ gravity: 0.98 });  // Gravity strength
+
+// In RigidBody constructor
+restitution: 0.7,  // Bounciness (0-1)
+friction: 0.08,    // Surface friction
 ```
 
 ### Change Multipliers
@@ -139,9 +158,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- [Matter.js](https://brm.io/matter-js/) - Excellent 2D physics engine
-- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
 - Inspired by the classic Plinko game from "The Price is Right"
+- Physics implementation based on research by Glenn Fiedler, Erin Catto, and others
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
 
 ## 📞 Contact
 
