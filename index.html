@@ -240,6 +240,7 @@
         let gameActive = false;
         let animationFrameId = null;
         let customData = null;
+        let histogramData = [];  // Track ball counts per bucket (bucket index → count)
 
         function init() {
             const container = document.getElementById('game-container');
@@ -285,6 +286,9 @@
             const rows = currentRows;
             const mults = MULTIPLIERS[rows];
             const numBuckets = mults.length;
+
+            // Reset histogram data for new level
+            histogramData = new Array(numBuckets).fill(0);
 
             // Smart gap: constrain by width AND height to fit all screen sizes
             const paddingX = 48; // 24px each side
@@ -337,7 +341,7 @@
                     isStatic: true,
                     isSensor: true,
                     label: 'sensor',
-                    plugin: { val: mults[i] },
+                    plugin: { val: mults[i], bucketIndex: i },
                     render: { visible: false }
                 });
                 engine.addBody(sensor);
@@ -363,6 +367,125 @@
 
             lastFrameTime = performance.now();
             animationFrameId = requestAnimationFrame(loop);
+        }
+
+        // ==========================================
+        // MINIMAP HISTOGRAM FUNCTIONS
+        // ==========================================
+
+        /**
+         * Normal Probability Density Function
+         * Calculates the height of the bell curve at position x
+         * @param {number} x - Position along x-axis
+         * @param {number} mean - Center of distribution
+         * @param {number} stdDev - Standard deviation (spread)
+         * @returns {number} PDF value (curve height)
+         */
+        function normalPDF(x, mean, stdDev) {
+            const coefficient = 1 / (stdDev * Math.sqrt(2 * Math.PI));
+            const exponent = -Math.pow(x - mean, 2) / (2 * Math.pow(stdDev, 2));
+            return coefficient * Math.exp(exponent);
+        }
+
+        /**
+         * Get minimap dimensions based on screen size
+         * @returns {Object} { x, y, width, height } position and size
+         */
+        function getMinimapDimensions() {
+            if (width < 480) {  // Mobile screens
+                return {
+                    x: 10,
+                    y: 10,
+                    width: Math.min(width * 0.4, 150),
+                    height: 80
+                };
+            } else {  // Desktop and tablet
+                return {
+                    x: 20,
+                    y: 20,
+                    width: 200,
+                    height: 120
+                };
+            }
+        }
+
+        /**
+         * Draw minimap histogram with normal distribution curve
+         * Shows ball landing frequency per bucket
+         */
+        function drawMinimap() {
+            if (!customData || histogramData.length === 0) return;
+            
+            const { numBuckets } = customData;
+            const mm = getMinimapDimensions();
+            const padding = 10;
+            const innerWidth = mm.width - (padding * 2);
+            const innerHeight = mm.height - (padding * 2);
+            
+            // ===== CONTAINER BACKGROUND =====
+            ctx.save();  // Save canvas state
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            
+            // Draw semi-transparent black box with white border
+            ctx.fillRect(mm.x, mm.y, mm.width, mm.height);
+            ctx.strokeRect(mm.x, mm.y, mm.width, mm.height);
+            
+            // ===== NORMAL DISTRIBUTION CURVE =====
+            // Calculate parameters for bell curve
+            const mean = numBuckets / 2;  // Center of distribution
+            const stdDev = Math.sqrt(numBuckets) / 2;  // Spread (wider for more buckets)
+            const maxPDF = normalPDF(mean, mean, stdDev);  // Peak height
+            
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';  // Subtle white
+            ctx.lineWidth = 2;
+            
+            // Draw smooth curve with high resolution (2x bucket count)
+            for (let i = 0; i <= numBuckets * 2; i++) {
+                const bucketPos = i / 2;  // Sub-bucket precision for smoothness
+                const x = mm.x + padding + (bucketPos / numBuckets) * innerWidth;
+                
+                // Calculate curve height at this position
+                const pdfValue = normalPDF(bucketPos, mean, stdDev);
+                const normalizedHeight = (pdfValue / maxPDF) * innerHeight;
+                const y = mm.y + mm.height - padding - normalizedHeight;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+            
+            // ===== HISTOGRAM BARS =====
+            const maxCount = Math.max(...histogramData, 1);  // Max count for scaling (min 1 to avoid /0)
+            const barWidth = innerWidth / numBuckets;
+            
+            for (let i = 0; i < numBuckets; i++) {
+                const count = histogramData[i];
+                const barHeight = (count / maxCount) * innerHeight;
+                const x = mm.x + padding + (i * barWidth);
+                const y = mm.y + mm.height - padding - barHeight;
+                
+                // Draw bar (leave 2px gap between bars)
+                ctx.fillStyle = 'rgba(34, 197, 94, 0.7)';  // Green with transparency
+                ctx.fillRect(x, y, barWidth - 2, barHeight);
+            }
+            
+            // ===== TOTAL COUNT LABEL =====
+            const totalBalls = histogramData.reduce((sum, count) => sum + count, 0);
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.font = '600 11px Inter';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(`Balls: ${totalBalls}`, mm.x + padding, mm.y + padding);
+            
+            ctx.restore();  // Restore canvas state
         }
 
         function render() {
@@ -411,6 +534,9 @@
 
                 ctx.restore();
             });
+            
+            // Draw minimap last (on top of everything)
+            drawMinimap();
         }
 
         function drawOverlay() {
@@ -532,6 +658,13 @@
             let sensor = bodyA.label === 'sensor' ? bodyA : bodyB.label === 'sensor' ? bodyB : null;
             if (sensor && ball.plugin.active) {
                 ball.plugin.active = false;
+                
+                // Track histogram data
+                const bucketIndex = sensor.plugin.bucketIndex;
+                if (bucketIndex !== undefined && bucketIndex < histogramData.length) {
+                    histogramData[bucketIndex]++;
+                }
+                
                 const mult = sensor.plugin.val;
                 const win = ball.plugin.bet * mult;
                 
