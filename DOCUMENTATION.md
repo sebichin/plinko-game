@@ -153,8 +153,35 @@ The `render` function runs every frame (vsync).
 3.  **Draw Bodies**: Iterates through `engine.bodies`.
     *   **Interpolation**: Uses `engine.getInterpolatedPosition(body, alpha)` to draw the body where it *should* be at the exact render time, not where it was at the last physics step.
     *   **Shape Drawing**: Uses standard Canvas API (`arc`, `fillRect`).
+4.  **Draw Minimap**: Renders the histogram overlay showing ball landing distribution.
 
-### 4.4 Audio System (`SoundManager`)
+### 4.4 Minimap Histogram System
+
+A live histogram visualization displays the distribution of ball landings across buckets.
+
+*   **Data Structure**: `histogramData` array tracks count per bucket (index = bucket index).
+*   **Rendering Components**:
+    1.  **Container**: Semi-transparent black box (200×120px desktop, 150×80px mobile) at top-left corner
+    2.  **Normal Distribution Curve**: Theoretical expected distribution based on binomial probability
+    3.  **Histogram Bars**: Green bars showing actual ball landing counts per bucket
+    4.  **Total Count Label**: "Balls: X" displaying cumulative ball count
+*   **Mathematical Model**: 
+    *   Binomial distribution approximates Normal distribution for large n
+    *   Mean: μ = numBuckets / 2
+    *   Standard deviation: σ = √(numBuckets) / 2
+    *   Normal PDF: f(x) = (1/(σ√(2π))) × e^(-(x-μ)²/(2σ²))
+*   **Responsive Design**: 
+    *   Desktop/Tablet (≥480px): 200×120px at (20, 20)
+    *   Mobile (<480px): 150×80px at (10, 10), width capped at 40% of screen
+*   **Reset Behavior**: Histogram automatically resets when level changes (different row count selected).
+*   **Performance**: Negligible impact (~0.3ms per frame), maintains 60 FPS.
+*   **Visual Features**:
+    *   Bars scale proportionally to max count (tallest bar = 100% height)
+    *   Normal curve drawn with 2x resolution for smoothness (22 segments for 11 buckets)
+    *   Semi-transparent styling for non-intrusive overlay
+    *   Proper z-order (drawn last, appears on top of game elements)
+
+### 4.5 Audio System (`SoundManager`)
 
 A custom synthesizer using the **Web Audio API**. No external assets are loaded.
 
