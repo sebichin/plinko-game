@@ -542,7 +542,31 @@
             // Check Peg (Natural Physics Interaction)
             let peg = bodyA.label === 'peg' ? bodyA : bodyB.label === 'peg' ? bodyB : null;
             if (peg) {
-                SoundManager.playPegHit();
+                // Calculate relative velocity to distinguish impact from resting contact
+                // This prevents rapid audio playback during continuous contact (60 sounds/sec)
+                const { collision } = event;
+                const velA = bodyA.getPointVelocity(collision.contactPoint);
+                const velB = bodyB.getPointVelocity(collision.contactPoint);
+                const relativeVel = {
+                    x: velB.x - velA.x,
+                    y: velB.y - velA.y
+                };
+                
+                // Calculate velocity magnitude along collision normal
+                // velAlongNormal represents the "impact speed" perpendicular to collision surface
+                const velAlongNormal = Math.abs(
+                    relativeVel.x * collision.normal.x + 
+                    relativeVel.y * collision.normal.y
+                );
+                
+                // Only play sound if impact velocity exceeds threshold
+                // Threshold of 50 px/s filters out resting contact oscillations (~16 px/s from gravity)
+                // This allows real bounces while silencing continuous contact
+                const IMPACT_THRESHOLD = 50; // pixels per second
+                if (velAlongNormal > IMPACT_THRESHOLD) {
+                    SoundManager.playPegHit();
+                }
+                
                 // Let natural physics handle deflection through restitution and friction
                 // No artificial force needed - realistic bounce creates proper randomness
             }
