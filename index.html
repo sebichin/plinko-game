@@ -286,14 +286,18 @@
             const mults = MULTIPLIERS[rows];
             const numBuckets = mults.length;
 
-            const paddingX = 24;
+            // Smart gap: constrain by width AND height to fit all screen sizes
+            const paddingX = 48; // 24px each side
+            const paddingY = 40;
             const safeWidth = width - paddingX;
-            let gap = safeWidth / numBuckets;
-            if (gap > 50) gap = 50;
+            const safeHeight = height - paddingY;
+            const gapByWidth = safeWidth / numBuckets;
+            const gapByHeight = safeHeight / (rows + 2.8);
+            const minGap = 25, maxGap = 65;
+            let gap = Math.max(minGap, Math.min(maxGap, gapByWidth, gapByHeight));
 
-            const pyramidHeight = rows * gap;
-            const startY = (height - pyramidHeight) / 2 - (gap * 1.0);
-            
+            const totalGameHeight = (rows + 2.8) * gap;
+            const startY = (height - totalGameHeight) / 2;
             const pegRadius = gap * 0.12;
             customData = { gap, rows, mults, startY, pegRadius, numBuckets };
 
