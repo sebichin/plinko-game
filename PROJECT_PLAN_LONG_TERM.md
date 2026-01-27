@@ -181,3 +181,15 @@ const WORKER_MSG = {
   COLLISION: 4
 };
 ```
+
+## Bug Reports & Lessons Learned
+
+### 1. Worker Synchronization and ID Management
+* **Issue:** Physics engine in Worker overwrote IDs assigned by Main thread, causing synchronization failure (balls not moving/syncing).
+* **Fix:** Explicitly check for existing `id` in `Engine.addBody()` before assigning a new auto-incremented ID.
+* **Lesson:** When using a split-thread architecture (Proxy/Worker), the Proxy (Main Thread) must be the "Source of Truth" for Entity IDs. The Worker should blindly accept these IDs to ensure the `SYNC` protocol (which relies on IDs to map buffer indices to objects) remains valid.
+
+### 2. Full-Screen Flex Layouts with Tailwind
+* **Issue:** Footer/Controls cut off on small screens or specific zoom levels because `body` was not a flex container.
+* **Fix:** Applied `h-screen w-screen flex flex-col` to `body` in `style.css`.
+* **Lesson:** When designing a "App-like" layout that must fit the viewport exactly (no scrolling), explicitly set the root container (`body`) to `height: 100vh` and use Flexbox to manage the available space distribution between the Game Canvas (`flex-grow`) and UI Controls (`flex-shrink-0`).

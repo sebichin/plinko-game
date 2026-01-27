@@ -34,7 +34,9 @@ export default class PhysicsEngine {
      * Add a body to the simulation
      */
     addBody(body) {
-        body.id = this.nextBodyId++;
+        if (body.id === undefined) {
+            body.id = this.nextBodyId++;
+        }
         this.bodies.push(body);
         return body;
     }
