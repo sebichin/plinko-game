@@ -1,0 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@600;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        @apply bg-slate-950 text-white select-none overflow-hidden touch-none;
+    }
+}
+
+@keyframes floatUp {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    20% { transform: translate(-50%, -150%) scale(1.1); opacity: 1; }
+    100% { transform: translate(-50%, -300%) scale(1); opacity: 0; }
+}
+
+.animate-floatUp {
+    animation: floatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
