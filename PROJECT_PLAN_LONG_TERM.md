@@ -193,3 +193,8 @@ const WORKER_MSG = {
 * **Issue:** Footer/Controls cut off on small screens or specific zoom levels because `body` was not a flex container.
 * **Fix:** Applied `h-screen w-screen flex flex-col` to `body` in `style.css`.
 * **Lesson:** When designing a "App-like" layout that must fit the viewport exactly (no scrolling), explicitly set the root container (`body`) to `height: 100vh` and use Flexbox to manage the available space distribution between the Game Canvas (`flex-grow`) and UI Controls (`flex-shrink-0`).
+
+### 3. GitHub Pages Deployment with Vite
+* **Issue:** Deployed site showed 404s or README content because the build process uses absolute paths by default (expecting root deployment) or the source setting was incorrect.
+* **Fix:** Set `base: '/repo-name/'` in `vite.config.js` to ensure correct path resolution for assets in a subdirectory.
+* **Lesson:** Always explicitly configure the `base` URL in Vite for GitHub Pages deployments to avoid path resolution errors, especially when not using a custom domain.
