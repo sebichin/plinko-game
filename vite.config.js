@@ -1,6 +1,6 @@
 export default {
   root: 'src',
-  base: './',
+  base: '/plinko-game/',
   build: {
     outDir: '../dist',
     emptyOutDir: true
