@@ -8,6 +8,11 @@ export default class Renderer {
         this.width = canvas.width;
         this.height = canvas.height;
         this.minimap = new Minimap();
+
+        // Offscreen canvas for static pegs (Optimization)
+        this.pegCanvas = document.createElement('canvas');
+        this.pegCtx = this.pegCanvas.getContext('2d');
+        this.pegCanvasValid = false;
     }
 
     resize(width, height) {
@@ -20,12 +25,48 @@ export default class Renderer {
         this.canvas.style.width = width + 'px';
         this.canvas.style.height = height + 'px';
 
+        // Resize peg canvas matches main canvas
+        this.pegCanvas.width = this.canvas.width;
+        this.pegCanvas.height = this.canvas.height;
+        this.pegCtx.scale(dpr, dpr);
+        this.pegCanvasValid = false; // Force redraw
+
         this.ctx.scale(dpr, dpr);
     }
 
-    render(engine, customData, interpolationAlpha) {
+    preparePegs(engine) {
+        if (this.pegCanvasValid) return;
+
+        const { pegCtx: ctx, width, height } = this;
+        ctx.clearRect(0, 0, width, height);
+
+        engine.bodies.forEach(body => {
+            if (body.label !== 'peg') return;
+
+            ctx.save();
+            ctx.translate(body.position.x, body.position.y);
+
+            // Glow effect
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+
+            ctx.beginPath();
+            ctx.arc(0, 0, body.radius, 0, Math.PI * 2);
+            ctx.fillStyle = body.render.fillStyle || '#ffffff';
+            ctx.fill();
+
+            ctx.restore();
+        });
+
+        this.pegCanvasValid = true;
+    }
+
+    render(engine, particles, customData, interpolationAlpha) {
         const { ctx, width, height } = this;
         if (!ctx || !customData) return;
+
+        // Ensure pegs are pre-rendered
+        if (!this.pegCanvasValid) this.preparePegs(engine);
 
         // Clear canvas
         ctx.clearRect(0, 0, width, height);
@@ -33,9 +74,34 @@ export default class Renderer {
         // Draw overlay
         this.drawOverlay(customData);
 
-        // Draw bodies
+        // Draw Pre-rendered Pegs
+        ctx.drawImage(this.pegCanvas, 0, 0, width, height);
+
+        // Draw trails and Dynamic bodies
         engine.bodies.forEach(body => {
-            if (body.render && body.render.visible === false) return;
+            if (body.label === 'peg' || (body.render && body.render.visible === false)) return;
+
+            // Draw Trail (for balls)
+            if (body.label === 'ball' && body.trail && body.trail.length > 1) {
+                ctx.beginPath();
+                ctx.moveTo(body.trail[0].x, body.trail[0].y);
+                for (let i = 1; i < body.trail.length; i++) {
+                    ctx.lineTo(body.trail[i].x, body.trail[i].y);
+                }
+
+                const gradient = ctx.createLinearGradient(
+                    body.trail[0].x, body.trail[0].y,
+                    body.position.x, body.position.y
+                );
+                gradient.addColorStop(0, 'rgba(255, 0, 85, 0)');
+                gradient.addColorStop(1, 'rgba(255, 0, 85, 0.6)');
+
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.lineWidth = body.radius * 0.8;
+                ctx.strokeStyle = gradient;
+                ctx.stroke();
+            }
 
             const pos = engine.getInterpolatedPosition(body, interpolationAlpha);
 
@@ -45,10 +111,24 @@ export default class Renderer {
             if (body.shape === 'circle') {
                 ctx.beginPath();
                 ctx.arc(0, 0, body.radius, 0, Math.PI * 2);
-                ctx.fillStyle = body.render.fillStyle || '#ffffff';
+
+                // Ball Gradient
+                if (body.label === 'ball') {
+                    const grad = ctx.createRadialGradient(-body.radius*0.3, -body.radius*0.3, body.radius*0.1, 0, 0, body.radius);
+                    grad.addColorStop(0, '#ffffff');
+                    grad.addColorStop(1, body.render.fillStyle);
+                    ctx.fillStyle = grad;
+
+                    // Ball Glow
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = body.render.fillStyle;
+                } else {
+                    ctx.fillStyle = body.render.fillStyle || '#ffffff';
+                }
+
                 ctx.fill();
 
-                if (body.render.strokeStyle) {
+                if (body.render.strokeStyle && body.label !== 'ball') {
                     ctx.strokeStyle = body.render.strokeStyle;
                     ctx.lineWidth = body.render.lineWidth || 1;
                     ctx.stroke();
@@ -69,6 +149,11 @@ export default class Renderer {
 
             ctx.restore();
         });
+
+        // Draw Particles
+        if (particles) {
+            particles.draw(ctx);
+        }
 
         // Draw minimap
         this.minimap.draw(ctx, customData);

@@ -64,6 +64,9 @@ export default class RigidBody {
         // Previous state for interpolation
         this.prevPosition = new Vec2(x, y);
         this.prevAngle = 0;
+
+        // Visuals
+        this.trail = [];
     }
 
     /**

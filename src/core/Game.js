@@ -5,13 +5,15 @@ import Renderer from '../render/Renderer.js';
 import GameState from './GameState.js';
 import SoundManager from './SoundManager.js';
 import UIManager from '../ui/UIManager.js';
-import { MULTIPLIERS } from '../config/constants.js';
+import ParticleSystem from '../render/ParticleSystem.js';
+import { MULTIPLIERS, getMultiplierColor } from '../config/constants.js';
 
 export default class Game {
     constructor() {
         this.state = GameState.getInstance();
         this.soundManager = SoundManager.getInstance();
         this.engine = new PhysicsEngine({ gravity: 980 });
+        this.particles = new ParticleSystem();
 
         const canvas = document.getElementById('world');
         this.renderer = new Renderer(canvas);
@@ -129,7 +131,10 @@ export default class Game {
             this.lastFrameTime = currentTime;
 
             const alpha = this.engine.update(deltaTime);
-            this.renderer.render(this.engine, this.customData, alpha);
+            this.updateTrails();
+            this.particles.update(deltaTime);
+
+            this.renderer.render(this.engine, this.particles, this.customData, alpha);
 
             this.animationFrameId = requestAnimationFrame(loop);
         };
@@ -198,6 +203,10 @@ export default class Game {
             this.soundManager.playScore(mult);
             this.state.balance += win;
 
+            // Confetti
+            const color = getMultiplierColor(mult);
+            this.particles.emit(ball.position.x, ball.position.y, 40, color, 300, 3, 1.5);
+
             this.ui.spawnFloater(mult, win, ball.position.x, ball.position.y);
             this.engine.removeBody(ball);
             return;
@@ -222,8 +231,21 @@ export default class Game {
             const IMPACT_THRESHOLD = 50;
             if (velAlongNormal > IMPACT_THRESHOLD) {
                 this.soundManager.playPegHit();
+                // Sparks
+                this.particles.emit(collision.contactPoint.x, collision.contactPoint.y, 4, '#ffffff', 100, 2, 0.3);
             }
         }
+    }
+
+    updateTrails() {
+        this.engine.bodies.forEach(body => {
+            if (body.label === 'ball') {
+                body.trail.push({ x: body.position.x, y: body.position.y });
+                if (body.trail.length > 20) {
+                    body.trail.shift();
+                }
+            }
+        });
     }
 
     restart() {
