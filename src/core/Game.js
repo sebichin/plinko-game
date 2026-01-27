@@ -1,4 +1,4 @@
-import PhysicsEngine from '../physics/Engine.js';
+import PhysicsProxy from './PhysicsProxy.js';
 import RigidBody from '../physics/RigidBody.js';
 import Vec2 from '../physics/Vec2.js';
 import Renderer from '../render/Renderer.js';
@@ -13,7 +13,7 @@ export default class Game {
     constructor() {
         this.state = GameState.getInstance();
         this.soundManager = SoundManager.getInstance();
-        this.engine = new PhysicsEngine({ gravity: 980 });
+        this.engine = new PhysicsProxy({ gravity: 980 });
         this.particles = new ParticleSystem();
         this.fairness = new FairnessSystem();
 
@@ -251,14 +251,7 @@ export default class Game {
     }
 
     updateTrails() {
-        this.engine.bodies.forEach(body => {
-            if (body.label === 'ball') {
-                body.trail.push({ x: body.position.x, y: body.position.y });
-                if (body.trail.length > 20) {
-                    body.trail.shift();
-                }
-            }
-        });
+        // Logic moved to PhysicsProxy.handleSync for efficiency
     }
 
     restart() {
