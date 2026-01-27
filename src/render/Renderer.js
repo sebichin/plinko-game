@@ -15,6 +15,10 @@ export default class Renderer {
         this.pegCanvasValid = false;
     }
 
+    reset() {
+        this.pegCanvasValid = false;
+    }
+
     resize(width, height) {
         this.width = width;
         this.height = height;

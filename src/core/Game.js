@@ -256,6 +256,7 @@ export default class Game {
 
     restart() {
         this.engine.clear();
+        this.renderer.reset();
         this.buildLevel();
     }
 }
