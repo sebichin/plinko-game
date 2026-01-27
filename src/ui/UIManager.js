@@ -1,15 +1,18 @@
 import GameState from '../core/GameState.js';
+import HistoryTape from './HistoryTape.js';
 
 export default class UIManager {
     constructor(game) {
         this.game = game;
         this.state = GameState.getInstance();
+        this.historyTape = new HistoryTape();
 
         // Elements
         this.balanceDisplay = document.getElementById('balanceDisplay');
         this.rowCountSelect = document.getElementById('rowCount');
         this.betInput = document.getElementById('betInput');
         this.maxBtn = document.getElementById('maxBtn');
+        this.ballTypeSelect = document.getElementById('ballType');
         this.speedSlider = document.getElementById('speedSlider');
         this.speedDisplay = document.getElementById('speedDisplay');
         this.sizeSlider = document.getElementById('sizeSlider');
@@ -41,6 +44,11 @@ export default class UIManager {
         this.maxBtn.addEventListener('click', () => {
             this.betInput.value = Math.floor(this.state.balance);
             this.state.betAmount = parseFloat(this.betInput.value);
+        });
+
+        // Ball Type
+        this.ballTypeSelect.addEventListener('change', (e) => {
+            this.state.ballType = e.target.value;
         });
 
         // Speed Slider

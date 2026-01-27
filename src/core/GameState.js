@@ -6,6 +6,7 @@ class GameState extends EventTarget {
         this.betAmount = 100;
         this.autoSpeed = 10;
         this.ballSizePercent = 0.35;
+        this.ballType = 'STANDARD';
         this.histogramData = [];
     }
 

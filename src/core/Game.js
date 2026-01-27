@@ -4,9 +4,10 @@ import Vec2 from '../physics/Vec2.js';
 import Renderer from '../render/Renderer.js';
 import GameState from './GameState.js';
 import SoundManager from './SoundManager.js';
+import FairnessSystem from './FairnessSystem.js';
 import UIManager from '../ui/UIManager.js';
 import ParticleSystem from '../render/ParticleSystem.js';
-import { MULTIPLIERS, getMultiplierColor } from '../config/constants.js';
+import { MULTIPLIERS, getMultiplierColor, BALL_TYPES } from '../config/constants.js';
 
 export default class Game {
     constructor() {
@@ -14,6 +15,7 @@ export default class Game {
         this.soundManager = SoundManager.getInstance();
         this.engine = new PhysicsEngine({ gravity: 980 });
         this.particles = new ParticleSystem();
+        this.fairness = new FairnessSystem();
 
         const canvas = document.getElementById('world');
         this.renderer = new Renderer(canvas);
@@ -143,7 +145,7 @@ export default class Game {
         this.animationFrameId = requestAnimationFrame(loop);
     }
 
-    dropBall() {
+    async dropBall() {
         this.soundManager.init();
 
         const bet = this.state.betAmount;
@@ -158,26 +160,34 @@ export default class Game {
         const sizePercent = this.state.ballSizePercent;
         const ballRadius = data.gap * sizePercent;
 
-        const jitter = (Math.random() * 1 - 0.5);
+        // Provably Fair RNG
+        const rand1 = await this.fairness.getNextFloat();
+        const rand2 = await this.fairness.getNextFloat();
+
+        // Jitter range: -0.5 to 0.5 pixels
+        const jitter = (rand1 * 1 - 0.5);
         const spawnY = data.startY + (data.gap * 1.2);
+
+        const ballType = BALL_TYPES[this.state.ballType] || BALL_TYPES.STANDARD;
 
         const ball = new RigidBody('circle', this.width / 2 + jitter, spawnY, {
             radius: ballRadius,
-            restitution: 0.35,
-            friction: 0.08,
+            restitution: ballType.restitution,
+            friction: ballType.friction,
             frictionAir: 0.005,
-            density: 0.008,
+            density: ballType.density,
             label: 'ball',
             plugin: { bet: bet, active: true },
             render: {
-                fillStyle: '#ff0055',
-                strokeStyle: '#ff88aa',
+                fillStyle: ballType.color,
+                strokeStyle: '#ffffff',
                 lineWidth: 2
             },
             collisionFilter: { group: -1 }
         });
 
-        const initialVelocityX = (Math.random() - 0.5) * 0.1;
+        // Velocity range: -0.05 to 0.05 px/s
+        const initialVelocityX = (rand2 - 0.5) * 0.1;
         ball.velocity = new Vec2(initialVelocityX, 0);
 
         this.engine.addBody(ball);
@@ -202,6 +212,9 @@ export default class Game {
 
             this.soundManager.playScore(mult);
             this.state.balance += win;
+
+            // History
+            this.ui.historyTape.addEntry(mult, win);
 
             // Confetti
             const color = getMultiplierColor(mult);

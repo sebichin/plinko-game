@@ -17,3 +17,9 @@ export const COLORS = {
     ball: '#ff0055',
     ballOutline: '#ff88aa'
 };
+
+export const BALL_TYPES = {
+    STANDARD: { density: 0.008, restitution: 0.35, friction: 0.08, color: '#ff0055', label: 'Standard' },
+    BOUNCY:   { density: 0.005, restitution: 0.8,  friction: 0.05, color: '#3b82f6', label: 'High Bounce' },
+    HEAVY:    { density: 0.015, restitution: 0.1,  friction: 0.2,  color: '#a855f7', label: 'Heavy' }
+};
